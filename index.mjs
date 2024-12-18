@@ -11,6 +11,10 @@ const client = new DynamoDBClient({});
 const dynamo = DynamoDBDocumentClient.from(client);
 const tableName = "latestHealthCheck";
 
+// TODO:
+// Add support for inserting first record if it's absent from the table
+// Send discord notification if the record was changed
+// Set up scheduler to run the job
 export const handler = async (event) => {
 
   function getUTCTimestampString()
@@ -54,25 +58,39 @@ export const handler = async (event) => {
       resultsObject.result = 'failed';
     }
 
-    
+    let record = await dynamo.send(
+      new GetCommand({
+        TableName: tableName,
+        Key: {
+          latestHealthCheckPartitionKey: 'latest'
+        },
+        Limit: 1
+      })
+    );
+
+    let latestRecord = record.Item;
+    let recordChanged = false;
+    if(resultsObject['httpd'] != latestRecord['httpd'] || resultsObject['jellyfin'] != latestRecord['jellyfin'] || resultsObject['qbt'] != latestRecord['qbt'] || resultsObject['hass'] != latestRecord['hass'] || resultsObject['express'] != latestRecord['express'] || resultsObject['flask'] != latestRecord['flask'])
+    {
+      recordChanged = true;
+    }
+    console.log(recordChanged);
+
     await dynamo.send(
       new PutCommand({
         TableName: tableName,
         Item: {
-          latestHealthCheckPartitionKey: "123",
-          id: 123,
-          price: 456,
-          name: 789
+          latestHealthCheckPartitionKey: 'latest',
+          timestamp: resultsObject['timestamp'],
+          httpd: resultsObject['httpd'],
+          jellyfin: resultsObject['jellyfin'],
+          qbt: resultsObject['qbt'],
+          hass: resultsObject['hass'],
+          express: resultsObject['express'],
+          flask: resultsObject['flask']
         },
       })
     );
-    
-    // await dynamo.send(
-    //   new DeleteCommand({
-    //     TableName: tableName,
-    //     Limit: 1
-    //   })
-    // );
 
     const resp = {
       statusCode: 200,
