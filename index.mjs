@@ -10,11 +10,8 @@ import {
 const client = new DynamoDBClient({});
 const dynamo = DynamoDBDocumentClient.from(client);
 const tableName = "latestHealthCheck";
+const webhookTable = 'discordWebhooks';
 
-// TODO:
-// Add support for inserting first record if it's absent from the table
-// Send discord notification if the record was changed
-// Set up scheduler to run the job
 export const handler = async (event) => {
 
   function getUTCTimestampString()
@@ -74,7 +71,6 @@ export const handler = async (event) => {
     {
       recordChanged = true;
     }
-    console.log(recordChanged);
 
     await dynamo.send(
       new PutCommand({
@@ -92,6 +88,31 @@ export const handler = async (event) => {
       })
     );
 
+    if(recordChanged === true)
+    {
+      let webhooks = await dynamo.send(
+        new GetCommand({
+          TableName: webhookTable,
+          Key: {
+            id: 'latest'
+          },
+          Limit: 1
+        })
+      );
+
+      let webhookUrl = webhooks.Item['health-checks'];
+      let statusString = 'httpd: ' + resultsObject['httpd'] + '\njellyfin: ' + resultsObject['jellyfin'] + '\nqbt: ' + resultsObject['qbt'] + '\nhass: ' + resultsObject['hass'] + '\nexpress: ' + resultsObject['express'] + '\nflask: ' + resultsObject['flask'];
+      await fetch(webhookUrl, {
+        method: "POST",
+        body: JSON.stringify({
+          "content": statusString
+        }),
+        headers: {
+          "Content-type": "application/json; charset=UTF-8"
+        }
+      });
+    }
+
     const resp = {
       statusCode: 200,
       body: JSON.stringify(resultsObject)
@@ -101,73 +122,3 @@ export const handler = async (event) => {
 
   return httpResponsePromise;
 };
-
-
-
-// export const handler = async (event, context) => {
-//   let body;
-//   let statusCode = 200;
-//   const headers = {
-//     "Content-Type": "application/json",
-//   };
-
-//   try {
-//     switch (event.routeKey) {
-//       case "DELETE /items/{id}":
-//         await dynamo.send(
-//           new DeleteCommand({
-//             TableName: tableName,
-//             Key: {
-//               id: event.pathParameters.id,
-//             },
-//           })
-//         );
-//         body = `Deleted item ${event.pathParameters.id}`;
-//         break;
-//       case "GET /items/{id}":
-//         body = await dynamo.send(
-//           new GetCommand({
-//             TableName: tableName,
-//             Key: {
-//               id: event.pathParameters.id,
-//             },
-//           })
-//         );
-//         body = body.Item;
-//         break;
-//       case "GET /items":
-//         body = await dynamo.send(
-//           new ScanCommand({ TableName: tableName })
-//         );
-//         body = body.Items;
-//         break;
-//       case "PUT /items":
-//         let requestJSON = JSON.parse(event.body);
-//         await dynamo.send(
-//           new PutCommand({
-//             TableName: tableName,
-//             Item: {
-//               id: requestJSON.id,
-//               price: requestJSON.price,
-//               name: requestJSON.name,
-//             },
-//           })
-//         );
-//         body = `Put item ${requestJSON.id}`;
-//         break;
-//       default:
-//         throw new Error(`Unsupported route: "${event.routeKey}"`);
-//     }
-//   } catch (err) {
-//     statusCode = 400;
-//     body = err.message;
-//   } finally {
-//     body = JSON.stringify(body);
-//   }
-
-//   return {
-//     statusCode,
-//     body,
-//     headers,
-//   };
-// };
