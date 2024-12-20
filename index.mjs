@@ -72,24 +72,24 @@ export const handler = async (event) => {
       recordChanged = true;
     }
 
-    await dynamo.send(
-      new PutCommand({
-        TableName: tableName,
-        Item: {
-          latestHealthCheckPartitionKey: 'latest',
-          timestamp: resultsObject['timestamp'],
-          httpd: resultsObject['httpd'],
-          jellyfin: resultsObject['jellyfin'],
-          qbt: resultsObject['qbt'],
-          hass: resultsObject['hass'],
-          express: resultsObject['express'],
-          flask: resultsObject['flask']
-        },
-      })
-    );
-
     if(recordChanged === true)
     {
+      await dynamo.send(
+        new PutCommand({
+          TableName: tableName,
+          Item: {
+            latestHealthCheckPartitionKey: 'latest',
+            timestamp: resultsObject['timestamp'],
+            httpd: resultsObject['httpd'],
+            jellyfin: resultsObject['jellyfin'],
+            qbt: resultsObject['qbt'],
+            hass: resultsObject['hass'],
+            express: resultsObject['express'],
+            flask: resultsObject['flask']
+          },
+        })
+      );
+      
       let webhooks = await dynamo.send(
         new GetCommand({
           TableName: webhookTable,
@@ -101,7 +101,7 @@ export const handler = async (event) => {
       );
 
       let webhookUrl = webhooks.Item['health-checks'];
-      let statusString = 'httpd: ' + resultsObject['httpd'] + '\njellyfin: ' + resultsObject['jellyfin'] + '\nqbt: ' + resultsObject['qbt'] + '\nhass: ' + resultsObject['hass'] + '\nexpress: ' + resultsObject['express'] + '\nflask: ' + resultsObject['flask'];
+      let statusString = 'Timestamp: ' + getUTCTimestampString() +'\nhttpd: ' + resultsObject['httpd'] + '\njellyfin: ' + resultsObject['jellyfin'] + '\nqbt: ' + resultsObject['qbt'] + '\nhass: ' + resultsObject['hass'] + '\nexpress: ' + resultsObject['express'] + '\nflask: ' + resultsObject['flask'];
       await fetch(webhookUrl, {
         method: "POST",
         body: JSON.stringify({
