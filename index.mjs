@@ -1,4 +1,5 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import axios from 'axios';
 import {
   DynamoDBDocumentClient,
   ScanCommand,
@@ -21,14 +22,78 @@ export const handler = async (event) => {
     return timestamp_string;
   }
 
-  const httpd = fetch('https://cjremmett.com/');
-  const jellyfin = fetch('https://cjremmett.com/jellyfin/');
-  const qbt = fetch('https://cjremmett.com/qbt/');
-  const hass = fetch('https://homeassistant.cjremmett.com/');
-  const express = fetch('https://cjremmett.com/api/');
-  const flask = fetch('https://cjremmett.com/flask');
+  const httpd = axios({
+    method: 'get',
+    url: 'https://cjremmett.com/',
+    validateStatus: status => (true),
+    timeout: 2000
+  }).then(response => {
+    return response;
+  })
+  .catch(error => {
+    return { 'status': 500 };
+  });
 
-  
+  const jellyfin = axios({
+    method: 'get',
+    url: 'https://cjremmett.com/jellyfin/',
+    validateStatus: status => (true),
+    timeout: 2000
+  }).then(response => {
+    return response;
+  })
+  .catch(error => {
+    return { 'status': 500 };
+  });
+
+  const qbt = axios({
+    method: 'get',
+    url: 'https://cjremmett.com/qbt/',
+    validateStatus: status => (true),
+    timeout: 2000
+  }).then(response => {
+    return response;
+  })
+  .catch(error => {
+    return { 'status': 500 };
+  });
+
+  const hass = axios({
+    method: 'get',
+    url: 'https://homeassistant.cjremmett.com/',
+    validateStatus: status => (true),
+    timeout: 2000
+  }).then(response => {
+    return response;
+  })
+  .catch(error => {
+    return { 'status': 500 };
+  });
+
+  const express = axios({
+    method: 'get',
+    url: 'https://cjremmett.com/api/',
+    validateStatus: status => (true),
+    timeout: 2000
+  }).then(response => {
+    return response;
+  })
+  .catch(error => {
+    return { 'status': 500 };
+  });
+
+  const flask = axios({
+    method: 'get',
+    url: 'https://cjremmett.com/flask',
+    validateStatus: status => (true),
+    timeout: 2000
+  }).then(response => {
+    return response;
+  })
+  .catch(error => {
+    return { 'status': 500 };
+  });
+
   const httpResponsePromise = await Promise.all([httpd, jellyfin, qbt, hass, express, flask]).then(async (results) => {
     let statusCodeArray = [];
     for(let i = 0; i < results.length; i++)
@@ -80,6 +145,7 @@ export const handler = async (event) => {
           Item: {
             latestHealthCheckPartitionKey: 'latest',
             timestamp: resultsObject['timestamp'],
+            result: resultsObject['result'],
             httpd: resultsObject['httpd'],
             jellyfin: resultsObject['jellyfin'],
             qbt: resultsObject['qbt'],
@@ -119,6 +185,8 @@ export const handler = async (event) => {
     };
     return resp;
   });
-
+  
+  
   return httpResponsePromise;
+  
 };
