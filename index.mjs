@@ -5,7 +5,6 @@ import {
   ScanCommand,
   PutCommand,
   GetCommand,
-  DeleteCommand,
 } from "@aws-sdk/lib-dynamodb";
 
 const client = new DynamoDBClient({});
@@ -13,180 +12,100 @@ const dynamo = DynamoDBDocumentClient.from(client);
 const tableName = "latestHealthCheck";
 const webhookTable = 'discordWebhooks';
 
-export const handler = async (event) => {
+const SERVICE_URLS = {
+  httpd: 'https://cjremmett.com/',
+  jellyfin: 'https://cjremmett.com/jellyfin/',
+  qbt: 'https://cjremmett.com/qbt/',
+  hass: 'https://homeassistant.cjremmett.com/',
+  express: 'https://cjremmett.com/api/',
+  flask: 'https://cjremmett.com/flask',
+  ectaibackend: 'https://ectai.cjremmett.com/',
+  ectaifrontend: 'https://cjremmett.com/ai/',
+  financeapi: 'https://cjremmett.com/finance-api/',
+  logging: 'https://cjremmett.com/logging/',
+};
 
-  function getUTCTimestampString()
-  {
-    let now = new Date();
-    let timestamp_string = now.getUTCFullYear() + '-' + (now.getUTCMonth() + 1) + '-' + now.getUTCDate() + ' ' + now.getUTCHours() + ':' + now.getUTCMinutes() + ':' + now.getUTCSeconds() + '.' + now.getUTCMilliseconds();
-    return timestamp_string;
+function getUTCTimestampString() {
+  return new Date().toISOString();
+}
+
+async function checkService(url) {
+  try {
+    const response = await axios.get(url, { validateStatus: () => true, timeout: 2000 });
+    return response.status;
+  } catch {
+    return 500;
   }
+}
 
-  const httpd = axios({
-    method: 'get',
-    url: 'https://cjremmett.com/',
-    validateStatus: status => (true),
-    timeout: 2000
-  }).then(response => {
-    return response;
-  })
-  .catch(error => {
-    return { 'status': 500 };
-  });
+export const handler = async (event) => {
+  const servicePromises = Object.entries(SERVICE_URLS).map(([key, url]) =>
+    checkService(url).then(status => ({ key, status }))
+  );
 
-  const jellyfin = axios({
-    method: 'get',
-    url: 'https://cjremmett.com/jellyfin/',
-    validateStatus: status => (true),
-    timeout: 2000
-  }).then(response => {
-    return response;
-  })
-  .catch(error => {
-    return { 'status': 500 };
-  });
+  const serviceResults = await Promise.allSettled(servicePromises);
+  const resultsObject = {
+    timestamp: getUTCTimestampString(),
+    result: 'ok',
+  };
 
-  const qbt = axios({
-    method: 'get',
-    url: 'https://cjremmett.com/qbt/',
-    validateStatus: status => (true),
-    timeout: 2000
-  }).then(response => {
-    return response;
-  })
-  .catch(error => {
-    return { 'status': 500 };
-  });
-
-  const hass = axios({
-    method: 'get',
-    url: 'https://homeassistant.cjremmett.com/',
-    validateStatus: status => (true),
-    timeout: 2000
-  }).then(response => {
-    return response;
-  })
-  .catch(error => {
-    return { 'status': 500 };
-  });
-
-  const express = axios({
-    method: 'get',
-    url: 'https://cjremmett.com/api/',
-    validateStatus: status => (true),
-    timeout: 2000
-  }).then(response => {
-    return response;
-  })
-  .catch(error => {
-    return { 'status': 500 };
-  });
-
-  const flask = axios({
-    method: 'get',
-    url: 'https://cjremmett.com/flask',
-    validateStatus: status => (true),
-    timeout: 2000
-  }).then(response => {
-    return response;
-  })
-  .catch(error => {
-    return { 'status': 500 };
-  });
-
-  const httpResponsePromise = await Promise.all([httpd, jellyfin, qbt, hass, express, flask]).then(async (results) => {
-    let statusCodeArray = [];
-    for(let i = 0; i < results.length; i++)
-    {
-      statusCodeArray.push(results[i].status);
-    }
-
-    let resultsObject = {
-      timestamp: getUTCTimestampString(),
-      httpd: results[0].status,
-      jellyfin: results[1].status,
-      qbt: results[2].status,
-      hass: results[3].status,
-      express: results[4].status,
-      flask: results[5].status
-    };
-    
-    if(Math.max(...statusCodeArray) === 200)
-    {
-      resultsObject.result = 'ok';
-    }
-    else
-    {
+  serviceResults.forEach(result => {
+    if (result.status === 'fulfilled') {
+      resultsObject[result.value.key] = result.value.status;
+      if (result.value.status !== 200) {
+        resultsObject.result = 'failed';
+      }
+    } else {
+      resultsObject[result.reason.key] = 500;
       resultsObject.result = 'failed';
     }
+  });
 
-    let record = await dynamo.send(
-      new GetCommand({
+  const record = await dynamo.send(
+    new GetCommand({
+      TableName: tableName,
+      Key: { latestHealthCheckPartitionKey: 'latest' },
+    })
+  );
+
+  const latestRecord = record.Item || {};
+  const recordChanged = Object.keys(SERVICE_URLS).some(
+    key => resultsObject[key] !== latestRecord[key]
+  );
+
+  if (recordChanged) {
+    await dynamo.send(
+      new PutCommand({
         TableName: tableName,
-        Key: {
-          latestHealthCheckPartitionKey: 'latest'
+        Item: {
+          latestHealthCheckPartitionKey: 'latest',
+          ...resultsObject,
         },
-        Limit: 1
       })
     );
 
-    let latestRecord = record.Item;
-    let recordChanged = false;
-    if(resultsObject['httpd'] != latestRecord['httpd'] || resultsObject['jellyfin'] != latestRecord['jellyfin'] || resultsObject['qbt'] != latestRecord['qbt'] || resultsObject['hass'] != latestRecord['hass'] || resultsObject['express'] != latestRecord['express'] || resultsObject['flask'] != latestRecord['flask'])
-    {
-      recordChanged = true;
-    }
+    const webhooks = await dynamo.send(
+      new GetCommand({
+        TableName: webhookTable,
+        Key: { id: 'latest' },
+      })
+    );
 
-    if(recordChanged === true)
-    {
-      await dynamo.send(
-        new PutCommand({
-          TableName: tableName,
-          Item: {
-            latestHealthCheckPartitionKey: 'latest',
-            timestamp: resultsObject['timestamp'],
-            result: resultsObject['result'],
-            httpd: resultsObject['httpd'],
-            jellyfin: resultsObject['jellyfin'],
-            qbt: resultsObject['qbt'],
-            hass: resultsObject['hass'],
-            express: resultsObject['express'],
-            flask: resultsObject['flask']
-          },
-        })
-      );
-      
-      let webhooks = await dynamo.send(
-        new GetCommand({
-          TableName: webhookTable,
-          Key: {
-            id: 'latest'
-          },
-          Limit: 1
-        })
-      );
-
-      let webhookUrl = webhooks.Item['health-checks'];
-      let statusString = 'Timestamp: ' + getUTCTimestampString() +'\nhttpd: ' + resultsObject['httpd'] + '\njellyfin: ' + resultsObject['jellyfin'] + '\nqbt: ' + resultsObject['qbt'] + '\nhass: ' + resultsObject['hass'] + '\nexpress: ' + resultsObject['express'] + '\nflask: ' + resultsObject['flask'];
+    const webhookUrl = webhooks.Item?.['health-checks'];
+    if (webhookUrl) {
+      const statusString = Object.entries(resultsObject)
+        .map(([key, value]) => `${key}: ${value}`)
+        .join('\n');
       await fetch(webhookUrl, {
         method: "POST",
-        body: JSON.stringify({
-          "content": statusString
-        }),
-        headers: {
-          "Content-type": "application/json; charset=UTF-8"
-        }
+        body: JSON.stringify({ content: statusString }),
+        headers: { "Content-type": "application/json; charset=UTF-8" },
       });
     }
+  }
 
-    const resp = {
-      statusCode: 200,
-      body: JSON.stringify(resultsObject)
-    };
-    return resp;
-  });
-  
-  
-  return httpResponsePromise;
-  
+  return {
+    statusCode: 200,
+    body: JSON.stringify(resultsObject),
+  };
 };
