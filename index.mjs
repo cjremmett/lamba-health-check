@@ -1,5 +1,4 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import axios from 'axios';
 import {
   DynamoDBDocumentClient,
   ScanCommand,
@@ -31,7 +30,10 @@ function getUTCTimestampString() {
 
 async function checkService(url) {
   try {
-    const response = await axios.get(url, { validateStatus: () => true, timeout: 2000 });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 2000);
+    const response = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeout);
     return response.status;
   } catch {
     return 500;

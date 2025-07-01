@@ -80,15 +80,8 @@ resource "aws_lambda_function" "health_check_lambda" {
   handler       = "index.handler"
   runtime       = "nodejs18.x"
 
-  source_code_hash = filebase64sha256(data.archive_file.zip_index_file)
-  filename         = data.archive_file.zip_index_file
-
-  environment {
-    variables = {
-      TABLE_NAME      = "latestHealthCheck"
-      WEBHOOK_TABLE   = "discordWebhooks"
-    }
-  }
+  source_code_hash = filebase64sha256("function.zip")
+  filename         = "function.zip"
 
   timeout = 30
 }
