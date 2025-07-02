@@ -2,16 +2,6 @@ provider "aws" {
   region = "us-east-1"
 }
 
-resource "null_resource" "install_axios_package" {
- provisioner "local-exec" {
-    command = <<-EOT
-      npm install
-    EOT
-    interpreter = ["/bin/bash", "-c"]
-    working_dir = "./axios_layer/nodejs"
-  }
-}
-
 data "archive_file" "zip_index_file" {
   type = "zip"
   source_file = "./index.mjs"
