@@ -2,16 +2,26 @@ provider "aws" {
   region = "us-east-1"
 }
 
+resource "null_resource" "install_axios_package" {
+ provisioner "local-exec" {
+    command = <<-EOT
+      npm install
+    EOT
+    interpreter = ["/bin/bash", "-c"]
+    working_dir = "./axios_layer/nodejs"
+  }
+}
+
 data "archive_file" "zip_index_file" {
   type = "zip"
-  source_file = "index.mjs"
-  output_path = "function.zip"
+  source_file = "./index.mjs"
+  output_path = "./function.zip"
 }
 
 data "archive_file" "axios_layer_zip" {
   type        = "zip"
-  source_dir  = "axios_layer/nodejs"
-  output_path = "axios_layer/axios_layer.zip"
+  source_dir  = "./axios_layer/nodejs"
+  output_path = "./axios_layer/axios_layer.zip"
 }
 
 resource "aws_lambda_layer_version" "axios_layer" {
@@ -92,8 +102,8 @@ resource "aws_lambda_function" "health_check_lambda" {
   handler       = "index.handler"
   runtime       = "nodejs18.x"
 
-  source_code_hash = filebase64sha256("function.zip")
-  filename         = "function.zip"
+  source_code_hash = filebase64sha256(data.archive_file.zip_index_file.output_path)
+  filename         = data.archive_file.zip_index_file.output_path
 
   layers = [aws_lambda_layer_version.axios_layer.arn]
 
