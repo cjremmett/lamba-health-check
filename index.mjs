@@ -5,6 +5,7 @@ import {
   PutCommand,
   GetCommand,
 } from "@aws-sdk/lib-dynamodb";
+import axios from "axios";
 
 const client = new DynamoDBClient({});
 const dynamo = DynamoDBDocumentClient.from(client);
@@ -30,13 +31,10 @@ function getUTCTimestampString() {
 
 async function checkService(url) {
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 2000);
-    const response = await fetch(url, { signal: controller.signal });
-    clearTimeout(timeout);
+    const response = await axios.get(url, { timeout: 2000 });
     return response.status;
-  } catch {
-    return 500;
+  } catch (error) {
+    return error.response?.status || 500;
   }
 }
 
@@ -98,9 +96,7 @@ export const handler = async (event) => {
       const statusString = Object.entries(resultsObject)
         .map(([key, value]) => `${key}: ${value}`)
         .join('\n');
-      await fetch(webhookUrl, {
-        method: "POST",
-        body: JSON.stringify({ content: statusString }),
+      await axios.post(webhookUrl, { content: statusString }, {
         headers: { "Content-type": "application/json; charset=UTF-8" },
       });
     }

@@ -8,6 +8,18 @@ data "archive_file" "zip_index_file" {
   output_path = "function.zip"
 }
 
+data "archive_file" "axios_layer_zip" {
+  type        = "zip"
+  source_dir  = "axios_layer/nodejs"
+  output_path = "axios_layer/axios_layer.zip"
+}
+
+resource "aws_lambda_layer_version" "axios_layer" {
+  layer_name          = "axios_layer"
+  compatible_runtimes = ["nodejs18.x"]
+  filename            = data.archive_file.axios_layer_zip.output_path
+}
+
 resource "aws_iam_role" "lambda_execution_role" {
   name = "lambda_execution_role"
 
@@ -82,6 +94,8 @@ resource "aws_lambda_function" "health_check_lambda" {
 
   source_code_hash = filebase64sha256("function.zip")
   filename         = "function.zip"
+
+  layers = [aws_lambda_layer_version.axios_layer.arn]
 
   timeout = 30
 }
