@@ -31,7 +31,7 @@ function getUTCTimestampString() {
 
 async function checkService(url) {
   try {
-    const response = await axios.get(url, { timeout: 2000 });
+    const response = await axios.get(url, { timeout: 5000 });
     return response.status;
   } catch (error) {
     return error.response?.status || 500;
