@@ -13,16 +13,9 @@ const tableName = "latestHealthCheck";
 const webhookTable = 'discordWebhooks';
 
 const SERVICE_URLS = {
-  httpd: 'https://cjremmett.com/',
-  jellyfin: 'https://cjremmett.com/jellyfin/',
-  qbt: 'https://cjremmett.com/qbt/',
+  jellyfin: 'https://jellyfin.cjremmett.com/',
+  qbt: 'https://qbt.cjremmett.com/',
   hass: 'https://homeassistant.cjremmett.com/',
-  express: 'https://cjremmett.com/api/',
-  flask: 'https://cjremmett.com/flask',
-  ectaibackend: 'https://ectai.cjremmett.com/',
-  ectaifrontend: 'https://cjremmett.com/ai/',
-  financeapi: 'https://cjremmett.com/finance-api/',
-  logging: 'https://cjremmett.com/logging/',
 };
 
 function getUTCTimestampString() {
