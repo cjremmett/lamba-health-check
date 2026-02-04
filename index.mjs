@@ -17,6 +17,7 @@ const SERVICE_URLS = {
   qbt: 'https://qbt.cjremmett.com/',
   hass: 'https://homeassistant.cjremmett.com/',
   guacamole: 'https://cjremmett.com/guacamole/',
+  wireguard: 'https://wireguard.cjremmett.com/',
 };
 
 function getUTCTimestampString() {
