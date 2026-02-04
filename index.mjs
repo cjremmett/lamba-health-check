@@ -16,6 +16,7 @@ const SERVICE_URLS = {
   jellyfin: 'https://jellyfin.cjremmett.com/',
   qbt: 'https://qbt.cjremmett.com/',
   hass: 'https://homeassistant.cjremmett.com/',
+  guacamole: 'https://cjremmett.com/guacamole/',
 };
 
 function getUTCTimestampString() {
